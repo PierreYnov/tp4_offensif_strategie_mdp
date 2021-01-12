@@ -9,56 +9,140 @@
 # Sommaire 
 
 - [Le Lab](#le-lab)
+- [Audit des comptes utilisateurs locaux]()
+- [Application d'une stratégie locale de mots de passes]()
 
-
-appliquer bonne pratique creation et gestion mdp pour compte user local windows
-pas sur un poste AD
-ceci peut etre fait sur un controleur de domaine, et propager via gpo
-
-a la fin on aura une strategie de mdp efficace, rendant impossible le cassage de mdp online
 
 
 ## Le lab
 
+- 1 machine avec Windows 10 Professionnel
+
+## Audit des comptes utilisateurs locaux 
 
 
-# 3.1 Audit des comptes utilisateurs locaux 
+On liste les comptes présent sur la machine avec la commande ``net user``
 
-Depuis une session admin local, et avec les commande NET intégrer à windows :
+![](img/list_user.png)
+
+L'utilisateur Emma a le rôle Administrateur
+L'autre a le rôle Invité.
+
+L'utilisateur Emma a donc les privilèges administrateurs.
+
+
+
+Les groupes sont visibles avec la commande ``net localgroup``
+
+![](list_group.png)
+
+Ceux avec des commandes administrateurs nécessitent une attention particulière, donc :
+
+- Administrateurs
+- Administrateurs Hyper-V
+- System Managed Accounts Group
+- Utilisateurs de gestion à distance
+- Propriétaires d'appareils
+
+Pour lister les utilisateurs de ces groupes on tape la commande ``net local group nom_du_groupe``
+
+Utilisateurs du groupe **Administrateurs** : Emma, Administrateur
+Utilisateurs du groupe **Administrateurs Hyper-V** : 
+Utilisateurs du groupe **System Managed Accounts Group** : DefaultAccount
+Utilisateurs du groupe **Utilisateurs de gestion à distance** : 
+Utilisateurs du groupe **Propriétaires d'appareils** : 
+
+On crée l'utilisateur **Pierre** qui sera uniquement membre du groupe Utilisateurs avec la commande :
+
+``net user pierre root /add`` 
+
+Il est bien dans Utilisateurs :
+
+![](img/net_user.png)
+
+
+Et pas dans Administrateurs :
+
+![](img/localgroup_verif.png)
+
+On passe sur le compte pierre
+
+![](img/pierre.png)
+
+On rentre le mot de passe, les animations de première connexions Windows 10 s'animent puis nous pouvons vérifier que tout est bon :
+
+![](img/pierre2.png)
+
+On se déconnecte et on repasse sur le compte Administrateur, puis on tape la commande ``net user pierre /ACTIVE:NO``
+
+On rentre le mot de passe, le compte est bien désactivé :
+
+![](img/lock_pierre.png)
+
+## Application d'une stratégie locale de mots de passes 
+
+**Rappeller quelles sont les caracteritisque recommandé d'un mdp robuste**
 
     
-    - lister precisemment les compter user sur le poste compter user sur le poste compter user sur le poste
-    - indiquer le role de chaque user
-    - identifier ceux qui ont des privilege admin sur la machine
-    - quels sont les groupes locaux config par default sur un poste windows ? preciser ce qui necessite une attentation spéciale et justifiez la rép
-    - lister les user de ces groupes particuliers
-    - créer un user standard ( membre uniquement du groupe utilisateurs) avec la NET command
-    - configurer un mdp pour cet user
-    - ouvrer une session avec ce compte pour verifier le bon fonctionnement des manip
-    - repartir sur la session admin local puis avec la commande NET, verrouiller le compte créé
-    - check qu'il est impossible de se connecter à cet ancien compte
+Le mot de passe doit respecter ces conditions :
+    - Suffisamment long (> 10 caractères)
+    - Composé de caractères variés (chiffre, majuscule, minuscule, ponctuation ...)
+    - N'est pas présent dans un dictionnaire ou n'est pas une prase connue
+    - En lien avec votre identité
+
+**Tapez gpedit.msc depuis un local admin local sur un cmd et dans la partie haute " Config ordinateur "**
 
 
 
+    - parcourir les parametres et s'assurer que le poste est config pour refuse l'ouverture de session pour des user avec un mdp vide. sinon modifier et justifier la réponse
+    
+Le paramètre se trouve dans ``Configuration de l’ordinateur\Paramètres Windows\Paramètres de sécurité\Stratégies locales\Options de sécurité`` et il est bien activé donc c'est déjà bien paramètré : 
 
-# 3.2 Application d'une stratégie locale de mots de passes :
+![](https://i.gyazo.com/98774e2f02b1e361a6d32d873b295956.png)
 
-Rappeller quelles sont les caracteritisque recommandé d'un mdp robuste
+Le paramètre doit être activé. Un mot de passe vide est une menace pour la sécurité. 
 
-    - tapez gpedit.msc depuis un local admin local sur un cmd
+    - appliquer la stratégie de mot de passe suivant :
+        - longueur min : 10 caractères
+        - le mdp doit respecter des exigences de compléxité
+        - durée de vie max du mdp : 6 mois
+        - Le système de gestion des mots de passe ne doit pas utiliser un algorithme de chiffrement réversible pour le stockage du mot de passe.
 
-dans la partie haute " Config ordinateur "
+On va dans ``Configuration de l’ordinateur\Paramètres Windows\Paramètres de sécurité\Stratégies de comptes\Stratégies de mot de passe\`` puis dans Longueur minimale du mot de passe, on passe le paramètre à 10 :
 
-    - parcourir les parametre
+![](https://i.gyazo.com/9629803c2cb8351c278ade1a72bdffb3.png)
+
+![](https://i.gyazo.com/1e8db0f625fde0ea540c1618811da760.png)
+
+![](https://i.gyazo.com/e00ebd58f0e83c4ab96d9f27e2931b5d.png)
+
+![](https://i.gyazo.com/97a31b74aeecd29e71416d94e6e5ac35.png)
 
 
+    - appliquez également la statégie de vérouillage de compte, afin de limiter les chances de succès d'attaques sur les mdp :
+        - Les système doit verrouiller un compte pendant 15 minutes après 5 tentatives de connexions infructueuses en moins 5 minutes.
 
+On va dans ``Configuration de l’ordinateur\Paramètres Windows\Paramètres de sécurité\Stratégies de comptes\Stratégies de verrouillage du compte\``
 
+![](https://i.gyazo.com/6ee6b0477022eb9ca547302fe91794d4.png)
 
+![](https://i.gyazo.com/c1199fa766e34bbd12910e73bc85e0fa.png)
 
+![](https://i.gyazo.com/49a535b6f9f017a717deb508e321c11f.png)
 
+Testez ensuite chacun des paramètres qu'on vient d'appliquer. pour cela, il faut créer deux nouveaux utilisateurs de test, ou modifier leur mot de passe? Présentez également tous les tests.
 
+Avec un faible mot de passe : 
 
+![](https://i.gyazo.com/f2a1f024ae3e2163880eb04469ae7734.png)
+
+Avec un mot de passe long mais pas complexe :
+
+![](https://i.gyazo.com/32a4a89b84ebb42239ff8032d0c7f3c0.png)
+
+Avec un mot de passe complexe, ça marche :
+
+![](https://i.gyazo.com/b8745b226cd164c9a68acf10ed69d09c.png)
 
 
 
